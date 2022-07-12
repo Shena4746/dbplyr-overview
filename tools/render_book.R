@@ -27,4 +27,19 @@ output_dir <- get_dir(
     except = not_search_here
 )
 
-bookdown::render_book(rmd_basename, output_dir = output_dir)
+tryCatch(
+    {
+        bookdown::render_book(rmd_basename, output_dir = output_dir)
+    },
+    error = function(e) {
+        print(e)
+        base::paste(
+            "current dir:",
+            getwd()
+        ) %>% print()
+        base::paste(
+            "output_dir:",
+            output_dir
+        )
+    }
+)

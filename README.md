@@ -1,26 +1,37 @@
 # 概要
 
-VSCode で Rmd から `bookdown::render()` を使ってファイル出力するとき用のテンプレ.
-scr ディレクトリで書いてビルドタスクを実行すると, knit されたファイルが docs ディレクトリに保存される.
+dbplyr の基本的な使い方とハンズオン.
 
-## Tasks.json
+## TOC
 
-ワークスペースを開いてると仮定する.
+- dbplyr とは
+  - 概要
+  - Pros & Cons
+  - 標準的な作業をフロー
+- Hands-On
+  - R から DB への接続
+  - テーブルへの参照とクエリの実行
+  - SQL 文の取得
+  - 翻訳できない R 関数例
+  - データのダウンロード
+  - データのアップロード
+    - ローカルデータ -> DB テーブル
+    - ローカルデータ -> tbl_lazy
+    - tbl_lazy -> DB テーブル
+- References
 
-- Render Book : ビルドタスク. scr 内のソースを見つけて `bookdown::render_book()` を実行する.
-- Open index.html in Chrome : ビルドされた index.html を見つけて Chrome で開く.
-- Serve and Open Book: `bookdown::serve_book()` を実行して Chrome で開く.
-- Clear Rendered Results : 一時オブジェクトおよび docs ディレクトリのファイルを破棄し, メモリを掃除する.
+## References
 
-## tools
-
-Tasks.json で実行される R スクリプト達.
-
-- dir_config.yml: `bookdown::render_book()` などのオプション引数を算出するためのディレクトリ構成の情報などが入っている. config パッケージで読んで情報を取り出す. ディレクトリ構成を変えたらこの中身もそれに応じて変えること.
-- tools.R: `bookdown::render_book()` 等が使うディレクトリを見つける係. VSCode のワークスペースを見つけてそこを起点にディレクトリの検索を行う.
-- render_book.R: 同名のタスクの具体的な実行内容. dir_config.yml と tools.R から取ってきたディレクトリやファイル情報を取得して `bookdown::render_book()` に流し込む.
-
-## 参考
-
-- [Authoring Books with R Markdown](https://bookdown.org/yihui/bookdown/configuration.html)
-- [R Markdown: The Definitive Guide](https://bookdown.org/yihui/rmarkdown/)
+- Overview
+  - [巨大なデータがSQLサーバーにあるときに、Rでどう立ち向かうかマニュアル：dbplyrパッケージを中心として](https://yutatoyama.github.io/note/intro_R_for_SQL.html)
+  - [Introduction to dbplyr](https://dbplyr.tidyverse.org/articles/dbplyr.html)
+  - [R: Working with Databases](https://nuitrcs.github.io/databases_workshop/r/r_databases.html)
+  - [Introduction to DBI](https://dbi.r-dbi.org/articles/dbi)
+- DBI
+  - [RSQLite & DBIの使い方](http://delta0726.web.fc2.com/packages/database/00_RSQLite.html)
+  - [DBI specification](https://dbi.r-dbi.org/articles/spec)
+  - [DBI: R Database Interface .pdf](https://cran.r-project.org/web/packages/DBI/DBI.pdf)
+  - [Code Examples for DBI and RPostgres](https://shena4746.github.io/code-examples-dbi-rpostgres/)
+  - [User-defined functions that DBI + RPostgres users should have](https://shena4746.github.io/r-functions-on-dbi/)
+- dbplyr 実践問題集
+  - [dbplyrでデータサイエンス100本ノック](https://shena4746.github.io/datascience-100knocks-preprocess-R/)

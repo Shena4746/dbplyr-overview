@@ -1,18 +1,19 @@
 ---
-title: "A bookdown template"
-author: "shena"
+title: "dbplyr 概論."
+author: "Shena"
 date: "`r Sys.Date()`"
 site: bookdown::bookdown_site
-description: "start from this template."
+description: 'An overview on dbplyr pakcages'
+github-repo: 'Shena4746/dbplyr-overview'
 ---
-# hello
 
 ```{r knit-setting-top, eval = TRUE, include=FALSE}
 # knit setting for this file
-rm(list = ls())
-gc(reset = TRUE)
-gc(reset = TRUE)
-knitr::opts_chunk$set(eval = TRUE, include = TRUE, echo = TRUE, warning = FALSE, collapse = TRUE)
+knitr::opts_chunk$set(
+    eval = TRUE,
+    include = TRUE,
+    echo = TRUE,
+    warning = FALSE,
+    collapse = TRUE
+)
 ```
-
-hello world. `gitbook::serve_book()` reflects changes on save.

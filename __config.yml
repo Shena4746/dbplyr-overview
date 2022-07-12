@@ -1,0 +1,8 @@
+default:
+  demo:
+    driver: 'Postgres' 
+    host: 'localhost'
+    user: 'guest'
+    password: 'guest'  
+    port: 5432
+    dbname: 'demo'

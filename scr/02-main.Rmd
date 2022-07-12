@@ -1,0 +1,319 @@
+```{r knit-setting-main, eval = TRUE, include=FALSE}
+# knit setting for this file.
+knitr::opts_chunk$set(
+    eval = TRUE,
+    include = TRUE,
+    echo = TRUE,
+    warning = FALSE,
+    collapse = TRUE
+)
+```
+
+# Hands-on {#hands-on}
+
+[標準的な作業フロー](work-flow) に沿って, そのコード例を示す.
+
+データは, [データサイエンス100本ノック（構造化データ加工編）](https://github.com/The-Japan-DataScientist-Society/100knocks-preprocess) のものを使い, Postgres DB がどこかに立ててあると仮定する.
+
+途中で DBI のメソッドがたまに出てくるが, それについてはここでは深入りしない. 必要に応じて参考文献にある DBI の関連情報にあたって欲しい.
+
+## R から DB への接続
+
+[Introduction to dbplyr](https://dbplyr.tidyverse.org/articles/dbplyr.html) 記載の方法に従う.
+
+必須パッケージ達.
+最初の2つは DB への接続用.
+
+```{r libraries, include=FALSE}
+library("DBI")
+library("RPostgres")
+library("dbplyr")
+library("dplyr")
+```
+
+```{r versions-of-libraries}
+R.version.string # R version
+packageVersion("RPostgres")
+packageVersion("DBI")
+packageVersion("dbplyr") # automatically loaded
+packageVersion("dplyr")
+```
+
+まだしてなければ, bash を叩いて Postgres を起動.
+```{bash, eval=FALSE}
+sudo service postgresql start
+```
+
+[Introduction to dbplyr](https://dbplyr.tidyverse.org/articles/dbplyr.html) は, DB 接続のためのコードとして以下の例と注意を述べている: 
+
+```{r example1-connect-to-DB, eval=FALSE}
+con <- DBI::dbConnect(
+    drv = RPostgreSQL::PostgreSQL(),
+    host = "database.rstudio.com",
+    user = "your-name",
+    password = rstudioapi::askForPassword("Database password")
+)
+```
+
+>If you’re not using RStudio, you’ll need some other way to securely retrieve your password. You should never record it in your analysis scripts or type it into the console. [Securing Credentials](https://db.rstudio.com/best-practices/managing-credentials) provides some best practices.
+
+これを踏まえると, 以下の接続方法は大変行儀が悪いが, 今回はどうせ localhost にこのノック限定で立てている DB だろうから, ここでは咎めないことにする.
+
+```{r example2-connect-to-DB, eval=FALSE}
+con <- DBI::dbConnect(
+    drv = RPostgres::Postgres(),
+    host = "localhost",
+    port = 5432,
+    dbname = "your-database-name",
+    user = "your-user",
+    password = "your-password"
+)
+```
+
+```{r connect-postgres, ref.label='refresh-con',include=FALSE}
+```
+
+接続できたか確認.
+
+```{r show-databases, message=TRUE}
+DBI::dbListTables(con)
+``` 
+
+## テーブルへの参照とクエリの実行
+
+まずは, DB 上のテーブルへの参照を取得しよう.
+
+```{r name-variables}
+receipt_tbl <- dplyr::tbl(con, "receipt")
+receipt_tbl %>% class()
+```
+
+このオブジェクトは, 実データとしての `tibble` ではなく, `tbl_dbi` オブジェクトである. dbplyr の文脈では `tbl_lazy` と呼ばれることも多いようだ.
+
+この`tbl_lazy`は実データではないが, 実データであるかのように加工処理を受け取って実行してくれる.
+
+```{r query-test}
+receipt_1000 <- receipt_tbl %>%
+    filter(amount >= 1000)
+receipt_1000 %>% class()
+receipt_1000
+```
+
+このとき返されるのは, 入力元と同じ `tbl_lazy` である.
+なお, この例のように, `tbl_lazy` は `head()` を使わなくても自動的に数行の情報を返す.
+
+## SQL 文の取得
+
+R から SQL への翻訳パートにも触れておこう. 先述のように, この翻訳過程は自動的に実行されるため初心者が意識する必要はあまりない. ここはスキップしても構わない. 
+
+R 上の加工処理がどのような SQL クエリに翻訳されたかは `dbplyr::show_query()` によって調べることができる.
+
+```{r show-query-example}
+receipt_tbl %>%
+    mutate(amount_mean = amount %>% mean(na.rm = TRUE)) %>%
+    filter(amount >= amount_mean) %>%
+    dplyr::show_query()
+
+# total amount of purchase per customer_id
+receipt_tbl %>%
+    group_by(customer_id) %>%
+    summarise(amount = amount %>% sum(na.rm = TRUE)) %>%
+    dplyr::show_query()
+
+# number of NA on each column
+con %>%
+    tbl("product") %>%
+    summarise(
+        across(
+            .cols = everything(),
+            .fns = ~ if_else(is.na(.x), 1, 0) %>% sum(),
+            .names = "{.col}_NA"
+        )
+    ) %>%
+    dplyr::show_query()
+```
+
+この翻訳結果を文字列として得るには `show_query()` ではなく, `dbplyr::sql_render()` を使う.
+
+```{r sql-render-exmple}
+# show_query() does not work as intended
+str_query <- receipt_tbl %>%
+    filter(amount >= 1000) %>%
+    dplyr::show_query()
+str_query %>% print()
+
+# sql_render() works
+str_query <- receipt_tbl %>%
+    filter(amount >= 1000) %>%
+    dbplyr::sql_render()
+str_query %>% print()
+```
+
+こうして翻訳された SQL クエリは DBI パッケージを通して実行される. DBI パッケージについては [References](ref) の文献を参照.
+
+なお, 後述する `collect()` を挟んだデータをこれらのメソッドに与えるとエラーになる.
+
+```{r error-show-query, error=TRUE}
+receipt_tbl %>%
+    summarise(n()) %>%
+    collect() %>%
+    show_query() # error. can't trace back to a remote table
+```
+
+DB 上のテーブルとの関連を失ったデータを得る方法を SQL で表すことはできないという自然な挙動だ.
+
+## 翻訳できない R 関数例
+ 
+実データではないので, `tbl_dbi %>% nrow()` は常に `NA` になる.
+
+```{r nrow-does-not-works}
+receipt_tbl %>% nrow()
+```
+
+これは代わりに, `count()` あるいは `summarise()` で数えてもらえばよい. これらは dbplyr を通しても使える.
+
+```{r count-summarise}
+receipt_tbl %>% count()
+receipt_tbl %>% summarise(n())
+```
+
+dbplyr 越しでは使えないメソッドもある. たとえば, `quantile` は `summarise` 以外では使えない.
+
+```{r quantile-fails, error=TRUE}
+# cause error
+receipt_tbl %>%
+    mutate(amount_quan1 = amount %>% quantile(probs = 0.25)) %>%
+    head()
+```
+
+```{r quantile-works, error=TRUE}
+# quantile works under summarise method
+receipt_tbl %>%
+    summarise(amount_quan1 = amount %>% quantile(probs = 0.25)) %>%
+    head()
+```
+
+## データのダウンロード
+
+実行結果を実データとして手元にダウンロードするには, `dplyr::collect()` を使うのが基本. これを実行した時点で DB との関連は切れて, ローカルの独立したデータとなる. 
+
+```{r collect}
+receipt_tbl %>%
+    count() %>%
+    collect() # donwload data
+```
+
+見慣れた `tibble` が落ちてきたことが確認できる. 
+ローカルに持ってくれば翻訳可能性問題は気にしなくてよくなる.
+
+```{r quantile-in-local}
+receipt_tbl %>%
+    collect() %>%
+    mutate(q1 = amount %>% quantile(probs = 0.25)) %>%
+    head()
+```
+
+`dplyr::pull(.data, var = -1, name = NULL,...)` では特定の列をベクトルデータとしてダウンロードできる. これはスカラー値を得たいときに特に便利.
+```{r pull}
+receipt_tbl %>%
+    summarise(q1 = amount %>% quantile(probs = 0.25)) %>%
+    pull()
+```
+
+## データのアップロード {#upload}
+
+`collect()` とは反対に, DB 側に新たなデータを作成する手段もある.
+これには3つのシナリオが有り得る.
+
+- ローカルデータを DB にテーブルとして書き込みたい場合
+- ローカルデータから `tbl_lazy` を作りたい場合
+- `tbl_lazy` を DB にテーブルとして書き込みたい場合
+
+### ローカルデータ -> DB テーブル
+
+`DBI::dbWriteTable()` または `DBI::dbCreateTable()` + `DBI::dbAppendTable()` を使うことを勧める.
+
+```{r create-table-from-local-data}
+# upload data by writing a table
+con %>%
+    DBI::dbWriteTable(
+        # upload by writing
+        name = "mtcars",
+        value = mtcars,
+        overwirte = TRUE
+    )
+
+con %>% DBI::dbListTables() # show remote tables
+con %>%
+    tbl("mtcars") %>%
+    head()
+
+# by creating a table first and then append the data to it
+if (con %>% DBI::dbExistsTable("mtcars")) {
+    con %>% DBI::dbRemoveTable("mtcars")
+}
+
+con %>% DBI::dbCreateTable(
+    name = "mtcars",
+    fields = mtcars
+)
+
+con %>% DBI::dbAppendTable(
+    name = "mtcars",
+    value = mtcars
+)
+con %>% DBI::dbListTables() # show remote tables
+tbl(con, "mtcars") %>% head()
+con %>% DBI::dbRemoveTable("mtcars")
+```
+
+【余談】
+DBI は, `DBI::dbWriteTable()` は一度に色々なことができすぎてしまうため, よりインクリメンタルな `DBI::dbCreateTable()` と `DBI::dbAppendTable()` を組み合わせて使う方法を推奨しているらしい(?).
+
+### ローカルデータ -> tbl_lazy
+
+`dbplyr::copy_inline()` を使う. これは現在のコネクションが切れれば消滅する一時的な `tbl_lazy` を作る.
+
+```{r copy-inline-example}
+mtcars_tbl <- con %>% dbplyr::copy_inline(mtcars) # upload
+mtcars_tbl %>% class()
+con %>% DBI::dbListTables() # mtcars is not written in as a table
+mtcars_tbl %>% head()
+```
+
+当然ながら `copy_inline()` はどのテーブルも参照していない. 対応する SQL は元データの羅列からの SELECT 文となる.
+
+```{r copy-inline-show-query}
+mtcars_tbl %>% show_query()
+```
+```{r ref.label='refresh-con'}
+```
+
+###  tbl_lazy -> DB テーブル
+
+`dplyr::copy_to()` を使う. デフォルトでは, 被る可能性のない変な名前の一時テーブルを作る. デフォルトのネーミングはあんまりなので(試してみるとよい), `name = ` 引数で名前は指定した方がよい.
+
+```{r copy-to-example1}
+con %>%
+    tbl("receipt") %>%
+    filter(amount >= 1000) %>%
+    copy_to(
+        dest = con,
+        df = .,
+        name = "temp",
+        overwrite = TRUE # optional
+    ) # from tbl_lazy to table
+con %>% dbListTables()
+con %>%
+    tbl("temp") %>%
+    head()
+con %>% dbDisconnect()
+con <- issue_con()
+con %>% dbListTables() # copied table disappeared
+```
+
+`dplyr::copy_to()` は, ローカルデータから一時テーブルを作成することもできる. その意味では, `DBI::dbWriteTable` などと似ている. しかし, 後者で一時テーブルを作る機能がサポートされているかどうかは, DBI のバックエンドパッケージ(e.g., RPostgres, RSQLite) に依存する. 両者の間に, 必ずしも相互互換性はないことには注意すべきであろう. 
+
+```{r disconnect,include=FALSE}
+release_cons()
+```

@@ -3,4 +3,6 @@ delete_merged_file: false
 rmd_files: 
   - top.Rmd # bind Rmd in this order.
   - 00-def.Rmd
-  - 01-main.Rmd
+  - 01-about.Rmd
+  - 02-main.Rmd
+  - 03-ref.Rmd
