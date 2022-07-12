@@ -6,7 +6,7 @@ knitr::opts_chunk$set(eval = TRUE, include = FALSE)
 ```{r def-issue-con}
 issue_con <- function(service_name) {
     # assume you are using config package and Postgres
-    crd <- config::get()
+    crd <- config::get(file = "./_config.yml")
     DBI::dbConnect(
         drv = RPostgres::Postgres(),
         host = crd$host,

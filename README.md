@@ -1,6 +1,6 @@
 # 概要
 
-dbplyr の基本的な使い方とハンズオン.
+[dbplyr 概論](https://shena4746.github.io/dbplyr-overview/) の ソース管理用レポジトリ. dbplyr の基本的な使い方とハンズオン.
 
 ## TOC
 
