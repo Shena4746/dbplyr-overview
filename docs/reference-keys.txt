@@ -2,7 +2,7 @@ about-dbplyr
 about
 pros-cons
 work-flow
-hands-on
+sample-code
 r-から-db-への接続
 テーブルへの参照とクエリの実行
 sql-文の取得

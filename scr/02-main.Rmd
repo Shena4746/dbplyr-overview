@@ -9,7 +9,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Hands-on {#hands-on}
+# サンプルコード {#sample-code}
 
 [標準的な作業フロー](work-flow) に沿って, そのコード例を示す.
 
@@ -268,7 +268,7 @@ con %>% DBI::dbRemoveTable("mtcars")
 ```
 
 【余談】
-DBI は, `DBI::dbWriteTable()` は一度に色々なことができすぎてしまうため, よりインクリメンタルな `DBI::dbCreateTable()` と `DBI::dbAppendTable()` を組み合わせて使う方法を推奨しているらしい(?).
+`DBI::dbWriteTable()` は一度に色々なことができすぎてしまうという理由から, 相対的にインクリメンタルな `DBI::dbCreateTable()` と `DBI::dbAppendTable()` を組み合わせて使う方法を DBI は推奨しているらしい(?).
 
 ### ローカルデータ -> tbl_lazy
 
@@ -286,7 +286,7 @@ mtcars_tbl %>% head()
 ```{r copy-inline-show-query}
 mtcars_tbl %>% show_query()
 ```
-```{r ref.label='refresh-con'}
+```{r ref.label='refresh-con', include=FALSE}
 ```
 
 ###  tbl_lazy -> DB テーブル
@@ -308,7 +308,7 @@ con %>%
     tbl("temp") %>%
     head()
 con %>% dbDisconnect()
-con <- issue_con()
+con <- issue_con() # user-defined function that issues a new connection variable
 con %>% dbListTables() # copied table disappeared
 ```
 
