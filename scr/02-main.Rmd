@@ -73,15 +73,25 @@ con <- DBI::dbConnect(
 ```{r connect-postgres, ref.label='refresh-con',include=FALSE}
 ```
 
-接続できたか確認.
+ここで, `DBI::dbConnect()` は `DBIConnection` クラスのインスタンスを返す関数である. `DBIConnection` は DB へのログイン情報を記述するクラスだと思えばよい. 接続先の DB に用がある間はこのインスタンスを少なくとも1つは変数に格納して持っておく必要がある. この変数は, 一般に, `DBI::dbDisconnect()` によって明示的に接続を解除しない限り, 有効であり続ける. 個別の事情がない限り, `DBIConnection` を2つ以上持つ実益はない. むしろ, 杜撰に管理された場合にリソースを無駄使いする可能性が生じやすい. したがって, `DBI::dbConnect()` は必要最小回数だけ, つまり, 接続開始時に1回だけ使うことが基本となる.
+
+接続できたか確認する意味も兼ねて, DB 上のテーブル一覧を次のようにして取得しよう.
 
 ```{r show-databases, message=TRUE}
-DBI::dbListTables(con)
+con %>% DBI::dbListTables()
 ``` 
+
+また, DB への用が済んだら接続解除することも必須である. 一般に, DBMS と DBI は解除されていない `DBIConnection` に関わるリソースを保持し続ける. このリソースには, クエリの実行結果や一時テーブルが含まれるため, 時にメモリを圧迫する原因となる. 接続解除は次のようにすればよい. 
+
+```{r disconnect-example, eval=FALSE}
+con %>% DBI::dbDisconnect()
+```
 
 ## テーブルへの参照とクエリの実行
 
-まずは, DB 上のテーブルへの参照を取得しよう.
+`DBIConnection` クラスは DBI 関数を使う際に必ずと言ってよいほど頻繁に使うが, 実は dbplyr を使う際はそうでもない. DB 上のテーブルの参照を取得するときと, データを DB 側に渡すとき (\@ref(upload) 参照) くらいである.
+
+DB 上のテーブルへの参照は, 以下のようにして取得する.
 
 ```{r name-variables}
 receipt_tbl <- dplyr::tbl(con, "receipt")
@@ -90,9 +100,14 @@ receipt_tbl %>% class()
 
 このオブジェクトは, 実データとしての `tibble` ではなく, `tbl_dbi` オブジェクトである. dbplyr の文脈では `tbl_lazy` と呼ばれることも多いようだ.
 
-この`tbl_lazy`は実データではないが, 実データであるかのように加工処理を受け取って実行してくれる.
+この`tbl_lazy`は実データではないが, 実データであるかのように加工処理の対象として扱える. この加工処理の裏では, R による処理が SQL へと翻訳され実行され...というプロセスが走っている.
 
 ```{r query-test}
+# not a data
+receipt_tbl %>% str()
+
+# but behave like data
+receipt_tbl %>% colnames()
 receipt_1000 <- receipt_tbl %>%
     filter(amount >= 1000)
 receipt_1000 %>% class()
@@ -104,7 +119,7 @@ receipt_1000
 
 ## SQL 文の取得
 
-R から SQL への翻訳パートにも触れておこう. 先述のように, この翻訳過程は自動的に実行されるため初心者が意識する必要はあまりない. ここはスキップしても構わない. 
+R から SQL への翻訳パートにも触れておこう. 先述のように, この翻訳過程は自動的に実行されるため初心者が意識する必要はあまりない. よって, ここは気になるまで無視しても構わない. 
 
 R 上の加工処理がどのような SQL クエリに翻訳されたかは `dbplyr::show_query()` によって調べることができる.
 
@@ -312,7 +327,7 @@ con <- issue_con() # user-defined function that issues a new connection variable
 con %>% dbListTables() # copied table disappeared
 ```
 
-`dplyr::copy_to()` は, ローカルデータから一時テーブルを作成することもできる. その意味では, `DBI::dbWriteTable` などと似ている. しかし, 後者で一時テーブルを作る機能がサポートされているかどうかは, DBI のバックエンドパッケージ(e.g., RPostgres, RSQLite) に依存する. 両者の間に, 必ずしも相互互換性はないことには注意すべきであろう. 
+`dplyr::copy_to()` は, ローカルデータから一時テーブルを作成することもできる. その意味では, `DBI::dbWriteTable` などと似ている. しかし, 後者が一時テーブルを作る機能がサポートしているかどうかは, DBI のバックエンドパッケージ(e.g., RPostgres, RSQLite) に依存する. R の DB 通信における汎用インターフェースである DBI がサポートしていない機能を, dplyr で抜け道的に使うことは一般には避けるべきだろう. その意味で，`dplyr::copy_to()` はインプットを `tbl_lazy` に限定した使用方法に留めるべきではないかと思う.
 
 ```{r disconnect,include=FALSE}
 release_cons()

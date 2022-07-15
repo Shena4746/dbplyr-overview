@@ -1,5 +1,5 @@
 ---
-title: "dbplyr 概論."
+title: "dbplyr 概論"
 author: "Shena"
 date: "`r Sys.Date()`"
 site: bookdown::bookdown_site
